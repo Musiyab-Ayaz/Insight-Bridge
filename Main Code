@@ -1,0 +1,245 @@
+'use client'
+
+import { useState, useEffect } from 'react'
+import { PrismaClient } from '@prisma/client'
+import { Moon, Sun, DollarSign, Users, TrendingUp, HelpCircle, ShoppingCart } from 'lucide-react'
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+
+const prisma = new PrismaClient()
+
+// Tracking pixel component
+function TrackingPixel({ visitorId, websiteId }) {
+  useEffect(() => {
+    const trackBehavior = async () => {
+      const behavior = {
+        timestamp: new Date(),
+        page: window.location.pathname,
+        referrer: document.referrer,
+        interactions: []
+      }
+
+      document.addEventListener('click', (e) => {
+        behavior.interactions.push({
+          type: 'click',
+          element: e.target.tagName,
+          timestamp: new Date()
+        })
+      })
+
+      // Send behavior data to the server
+      await fetch('/api/pixel', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ visitorId, websiteId, behavior })
+      })
+    }
+
+    trackBehavior()
+  }, [visitorId, websiteId])
+
+  return null
+}
+
+function MetricCard({ title, value, icon: Icon, explanation }) {
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <CardTitle className="text-sm font-medium">
+          {title}
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" className="h-4 w-4 p-0 ml-1">
+                  <HelpCircle className="h-4 w-4" />
+                  <span className="sr-only">Explain {title}</span>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>{explanation}</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </CardTitle>
+        <Icon className="h-4 w-4 text-muted-foreground" />
+      </CardHeader>
+      <CardContent>
+        <div className="text-2xl font-bold">{value}</div>
+      </CardContent>
+    </Card>
+  )
+}
+
+function ReferralTable({ referrals }) {
+  return (
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead>Your Website</TableHead>
+          <TableHead>Customer Referred To</TableHead>
+          <TableHead>Your Earnings</TableHead>
+          <TableHead>Status</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {referrals.map((referral) => (
+          <TableRow key={referral.id}>
+            <TableCell>{referral.referrerSite}</TableCell>
+            <TableCell>{referral.referredSite}</TableCell>
+            <TableCell>${referral.commission.toFixed(2)}</TableCell>
+            <TableCell>{referral.status === 'COMPLETED' ? '✅ Paid' : '⏳ Pending'}</TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
+  )
+}
+
+function RecommendationSection({ recommendations }) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Recommended Next Conversions</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Customer From</TableHead>
+              <TableHead>Recommended Next Site</TableHead>
+              <TableHead>Likelihood</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {recommendations.map((rec, index) => (
+              <TableRow key={index}>
+                <TableCell>{rec.fromSite}</TableCell>
+                <TableCell>{rec.toSite}</TableCell>
+                <TableCell>{rec.likelihood}%</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
+  )
+}
+
+export default function AdvancedReferralDashboard() {
+  const [referrals, setReferrals] = useState([])
+  const [analytics, setAnalytics] = useState({
+    totalCommission: 0,
+    conversionRate: 0,
+    activeReferrals: 0,
+    totalSales: 0
+  })
+  const [recommendations, setRecommendations] = useState([])
+  const [isDarkMode, setIsDarkMode] = useState(true)
+  const [selectedTimeframe, setSelectedTimeframe] = useState('7d')
+
+  useEffect(() => {
+    const fetchData = async () => {
+      // Simulating API calls to fetch data
+      const referralData = [
+        { id: 1, referrerSite: 'YourWeddingRings.com', referredSite: 'ElegantWeddingDresses.com', commission: 100, status: 'COMPLETED' },
+        { id: 2, referrerSite: 'YourWeddingRings.com', referredSite: 'LuxuryHoneymoons.com', commission: 250, status: 'PENDING' },
+        { id: 3, referrerSite: 'YourWeddingPhotography.com', referredSite: 'PremiumPhotoAlbums.com', commission: 75, status: 'COMPLETED' },
+        { id: 4, referrerSite: 'YourWeddingVenues.com', referredSite: 'GourmetCatering.com', commission: 180, status: 'PENDING' },
+      ]
+      const analyticsData = {
+        totalCommission: 605,
+        conversionRate: 0.15,
+        activeReferrals: 4,
+        totalSales: 15000
+      }
+      const recommendationData = [
+        { fromSite: 'WeddingRings.com', toSite: 'WeddingDresses.com', likelihood: 85 },
+        { fromSite: 'WeddingVenues.com', toSite: 'WeddingCatering.com', likelihood: 72 },
+        { fromSite: 'WeddingPhotography.com', toSite: 'HoneymoonPackages.com', likelihood: 68 },
+      ]
+
+      setReferrals(referralData)
+      setAnalytics(analyticsData)
+      setRecommendations(recommendationData)
+    }
+
+    fetchData()
+  }, [selectedTimeframe])
+
+  const toggleTheme = () => {
+    setIsDarkMode(!isDarkMode)
+  }
+
+  return (
+    <div className={`min-h-screen ${isDarkMode ? 'dark' : ''}`}>
+      <div className="bg-background text-foreground">
+        <TrackingPixel visitorId="123" websiteId="456" />
+        <div className="container mx-auto p-4">
+          <div className="flex justify-between items-center mb-6">
+            <h1 className="text-3xl font-bold">Your Network Dashboard</h1>
+            <div className="flex items-center gap-4">
+              <Select value={selectedTimeframe} onValueChange={setSelectedTimeframe}>
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Select timeframe" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="7d">Last 7 days</SelectItem>
+                  <SelectItem value="30d">Last 30 days</SelectItem>
+                  <SelectItem value="90d">Last 90 days</SelectItem>
+                </SelectContent>
+              </Select>
+              <Button variant="outline" size="icon" onClick={toggleTheme}>
+                {isDarkMode ? <Sun className="h-[1.2rem] w-[1.2rem]" /> : <Moon className="h-[1.2rem] w-[1.2rem]" />}
+                <span className="sr-only">Switch to {isDarkMode ? 'light' : 'dark'} mode</span>
+              </Button>
+            </div>
+          </div>
+          <p className="mb-6">Welcome to your network dashboard! Here you can track your referrals, earnings, and get recommendations for future conversions.</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            <MetricCard 
+              title="Total Earnings" 
+              value={`$${analytics.totalCommission}`} 
+              icon={DollarSign}
+              explanation="This is the total amount you've earned from all your referrals across your network."
+            />
+            <MetricCard 
+              title="Conversion Rate" 
+              value={`${(analytics.conversionRate * 100).toFixed(2)}%`} 
+              icon={TrendingUp}
+              explanation="This percentage shows how many of your referrals resulted in a successful purchase on the recommended site."
+            />
+            <MetricCard 
+              title="Active Referrals" 
+              value={analytics.activeReferrals} 
+              icon={Users}
+              explanation="This is the number of successful referrals you've made across your network."
+            />
+            <MetricCard 
+              title="Total Network Sales" 
+              value={`$${analytics.totalSales}`} 
+              icon={ShoppingCart}
+              explanation="This is the total value of sales generated through your network referrals."
+            />
+          </div>
+          <Card className="mb-6">
+            <CardHeader>
+              <CardTitle>Your Recent Referrals</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ReferralTable referrals={referrals} />
+            </CardContent>
+          </Card>
+          <RecommendationSection recommendations={recommendations} />
+          <p className="text-sm text-muted-foreground mt-6">
+            Need help understanding your dashboard? Click the question mark icons next to each metric for more information. The recommendations are based on customer behavior and purchasing patterns across our network.
+          </p>
+        </div>
+      </div>
+    </div>
+  )
+}
